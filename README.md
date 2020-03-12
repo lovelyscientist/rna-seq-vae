@@ -10,11 +10,11 @@ Snapshots of TensorBoard scalars:
 
 ![ELBO](./tensorboard_imgs/elbo.png)
 
-`KL Divergence` from epoch 1 to n_epochs
+`KL Divergence (latent loss)` from epoch 1 to n_epochs
 
-![ELBO](./tensorboard_imgs/kl_divergence.png)
+![KL Divergence (latent loss)](./tensorboard_imgs/kl_divergence.png)
 
-`mse` from epoch 1 to n_epochs
+`MSE (reconstruction loss)` from epoch 1 to n_epochs
 
-![ELBO](./tensorboard_imgs/mse.png)
+![MSE (reconstruction loss)](./tensorboard_imgs/mse.png)
 
