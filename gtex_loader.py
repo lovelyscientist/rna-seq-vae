@@ -50,11 +50,10 @@ def get_gtex_dataset(problem='regression'):
         #pd.DataFrame(data=Y, columns=['Age'])], # age
     axis=1).values
 
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = 0.2, random_state = 42, stratify=Y)
 
-    print(X_train[0])
+    X_train, X_test, Y_train, Y_test = train_test_split(scaled_df.values, Y, test_size = 0.2, random_state = 42, stratify=Y)
 
-    return (X_train, Y_train), (X_test, Y_test)
+    return (X_train[:13900], Y_train[:13900]), (X_test[:3400], Y_test[:3400])
 
 # limit expressions to only 50 genes
 def get_genes_of_interest():
