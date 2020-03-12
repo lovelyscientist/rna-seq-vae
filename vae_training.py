@@ -1,8 +1,6 @@
 import tensorflow as tf
-from VariationalAutoencoder import VAE
-import numpy as np
+from model import VAE
 import time
-import PIL
 from gtex_loader import get_gtex_dataset
 
 writer = tf.summary.create_file_writer("./logs/run3")
@@ -73,12 +71,11 @@ def training():
                            step=epoch)
       tf.summary.histogram('generative output layer', data=model.generative_net.layers[2].trainable_weights[0],
                            step=epoch)
-    #display.clear_output(wait=False)
+
     print('Epoch: {}, Test set ELBO: {}, '
           'time elapse for current epoch {}'.format(epoch,
                                                     elbo,
                                                     end_time - start_time))
-    #print(epoch)
     if epoch == epochs:
         random_vector_for_generation = tf.random.normal(
             shape=[num_examples_to_generate, latent_dim])
