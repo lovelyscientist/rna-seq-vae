@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import axes3d, Axes3D
+from mpl_toolkits.mplot3d import Axes3D
 
 GTEX_EXPRESSIONS_PATH = './data/v8_expressions.parquet'
 GTEX_SAMPLES_PATH = './data/v8_samples.parquet'
