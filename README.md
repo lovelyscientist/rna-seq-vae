@@ -1,8 +1,12 @@
-Variational Autoencoder for gene expression generation
+Variational Auto-encoder for Gene Expression data
 
 - `model.py ` - Layers and properties of neural network
 - `gtex_loder.py` - Loading gene expression dataset
 - `vae_training.py` - Model Training and Testing
+
+`python3 vae_training.py` to start the generation algorithm
+
+`tensorboard --logdir logs/run{number_of_run}` to start tensorboard
 
 Snapshots of TensorBoard scalars:
 

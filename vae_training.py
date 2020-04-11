@@ -13,15 +13,16 @@ test_samples = test_samples.astype('float32')
 TRAIN_BUF = len(train_samples)
 BATCH_SIZE = 100
 TEST_BUF = len(test_samples)
-epochs = 100
+epochs = 50
 latent_dim = 16
 num_examples_to_generate = 6
+FEATURES_SIZE = 50
 
 train_dataset = tf.data.Dataset.from_tensor_slices(train_samples).shuffle(TRAIN_BUF).batch(BATCH_SIZE)
 test_dataset = tf.data.Dataset.from_tensor_slices(test_samples).shuffle(TEST_BUF).batch(BATCH_SIZE)
 
 optimizer = tf.keras.optimizers.Adam(1e-5)
-
+'''
 @tf.function
 def compute_loss(model, x, epoch=None):
   mean, logvar = model.encode(x)
@@ -84,5 +85,6 @@ def training():
             print(p)
 
 
-model = VAE(latent_dim, (50,))
+model = VAE(latent_dim, (FEATURES_SIZE,))
 training()
+'''
