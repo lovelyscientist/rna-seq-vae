@@ -10,8 +10,8 @@ from mpl_toolkits.mplot3d import Axes3D
 
 GTEX_EXPRESSIONS_PATH = './data/v8_expressions.parquet'
 GTEX_SAMPLES_PATH = './data/v8_samples.parquet'
-TRAIN_SIZE = 13900
-TEST_SIZE = 3400
+TRAIN_SIZE = 4500
+TEST_SIZE = 1100
 
 # load gene expression data
 def get_expressions(path=GTEX_EXPRESSIONS_PATH):
@@ -36,11 +36,13 @@ def get_samples(path=GTEX_SAMPLES_PATH):
 def get_gtex_dataset(problem='regression'):
     samples = get_samples()
     expressions = get_expressions()
-    first_100_genes = list(expressions.columns)[:50]
-    expressions = expressions[first_100_genes] #get_expressions()[get_genes_of_interest()]
+
+    first_100_genes = list(expressions.columns)[:1000]
+    expressions = expressions[first_100_genes]
+
+    #expressions = get_expressions()[get_genes_of_interest()]
     data = samples.join(expressions, on="Name", how="inner")
-    #data = data[(data['Tissue'] == 'Skin')]
-    print(len(data))
+    data = data[(data['Avg_age'] == 64.5)]
 
     if problem == 'classification':
         Y = data['Age'].values
@@ -50,6 +52,8 @@ def get_gtex_dataset(problem='regression'):
     columns_to_drop = ["Tissue", "Sex", "Age", "Death", "Subtissue", "Avg_age"]
     valid_columns = data.columns.drop(columns_to_drop)
     scaled_df = pd.DataFrame(MinMaxScaler().fit_transform(data[valid_columns]), columns=valid_columns)
+    scaled_df.to_csv('gtex_text_gens_vae.csv')
+    print(scaled_df.info())
 
     '''X = pd.concat([
         scaled_df, # scaled expressions
@@ -64,9 +68,9 @@ def get_gtex_dataset(problem='regression'):
 
     X_train, X_test, Y_train, Y_test = train_test_split(scaled_df.values, Y, test_size = 0.2, random_state = 42, stratify=Y)
 
-    plot_dataset_in_normal_space(X_train[:TRAIN_SIZE], Y_train[:TRAIN_SIZE])
+    #plot_dataset_in_normal_space(X_train[:TRAIN_SIZE], Y_train[:TRAIN_SIZE])
 
-    return (X_train[:TRAIN_SIZE], Y_train[:TRAIN_SIZE]), (X_test[:TEST_SIZE], Y_test[:TEST_SIZE])
+    return (X_train[:TRAIN_SIZE], Y_train[:TRAIN_SIZE]), (X_test[:TEST_SIZE], Y_test[:TEST_SIZE]), scaled_df.values
 
 # limit expressions to only 50 genes
 def get_genes_of_interest():
