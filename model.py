@@ -9,9 +9,6 @@ class VAE(tf.keras.Model):
     self.inference_net = tf.keras.Sequential(
       [
           tf.keras.layers.InputLayer(input_shape=input_shape),
-          #tf.keras.layers.Dense(32, activation=tf.nn.relu),
-          #tf.keras.layers.BatchNormalization(),
-         # tf.keras.layers.Dense(64, activation=tf.nn.relu),
           tf.keras.layers.BatchNormalization(),
           tf.keras.layers.Dense(self.latent_dim + self.latent_dim, kernel_initializer='glorot_uniform', activation=tf.nn.relu)
       ]
@@ -22,11 +19,7 @@ class VAE(tf.keras.Model):
     self.generative_net = tf.keras.Sequential(
         [
           tf.keras.layers.InputLayer(input_shape=(self.latent_dim,)),
-          #tf.keras.layers.Dense(64, activation=tf.nn.relu),
-          #tf.keras.layers.BatchNormalization(),
-          #tf.keras.layers.Dense(32, activation=tf.nn.relu),
-          #tf.keras.layers.BatchNormalization(),
-          tf.keras.layers.Dense(input_shape[0],  kernel_initializer='glorot_uniform', activation='sigmoid')
+          tf.keras.layers.Dense(input_shape[0],  kernel_initializer='glorot_uniform', activation=tf.nn.sigmoid)
         ]
     )
 

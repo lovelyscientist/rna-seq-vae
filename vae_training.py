@@ -1,13 +1,17 @@
 import tensorflow as tf
 from model import VAE
 import time
-from gtex_loader import get_gtex_dataset
+from gtex_loader import get_gtex_dataset, plot_dataset_in_3d_space
 import numpy as np
 from pprint import pprint
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
 
-writer = tf.summary.create_file_writer("./logs/run3")
+logdir = "./logs/run3"
+writer = tf.summary.create_file_writer(logdir)
 
-(train_samples, _), (test_samples, _), df_values = get_gtex_dataset()
+(train_samples, _), (test_samples, _), df_values, df_columns = get_gtex_dataset()
 
 train_samples = train_samples.astype('float32')
 test_samples = test_samples.astype('float32')
@@ -32,16 +36,9 @@ def compute_loss(model, x, epoch=None):
   x_logit = model.decode(z)
 
   reconstruction_loss = tf.reduce_mean(tf.square(tf.subtract(x, x_logit)))
-  epsilon = 1e-10
-  recon_loss = -tf.reduce_sum(
-      x * tf.math.log(epsilon + x_logit) +
-      (1 - x) * tf.math.log(epsilon + 1 - x_logit),
-      axis=1
-  )
-  #reconstruction_loss = tf.reduce_mean(recon_loss) * FEATURES_SIZE
-  #reconstruction_loss = tf.multiply(float(FEATURES_SIZE), tf.keras.losses.binary_crossentropy(x, x_logit))
+  #reconstruction_loss = tf.reduce_sum(tf.keras.losses.binary_crossentropy(x, x_logit, from_logits=False))
   kl_loss = -0.5 * tf.reduce_sum(1 + logvar - tf.square(mean) - tf.exp(logvar))
-  #kl_loss = tf.reduce_mean(kl_loss)
+
 
   if epoch:
       with writer.as_default():
@@ -59,6 +56,7 @@ def compute_apply_gradients(model, x, optimizer):
 
 
 def training():
+  tf.summary.trace_on(graph=True, profiler=True)
   for epoch in range(1, epochs + 1):
     start_time = time.time()
     for train_x in train_dataset:
@@ -73,41 +71,91 @@ def training():
     with writer.as_default():
       tf.summary.scalar('elbo', data=elbo, step=epoch)
       tf.summary.histogram('inference first dense layer', data=model.inference_net.layers[0].trainable_weights[0], step=epoch)
-      #tf.summary.histogram('inference second dense layer', data=model.inference_net.layers[1].trainable_weights[0],
-      #                     step=epoch)
-      #tf.summary.histogram('inference output layer', data=model.inference_net.layers[2].trainable_weights[0],
-       #                    step=epoch)
       tf.summary.histogram('generative first dense layer', data=model.generative_net.layers[0].trainable_weights[0],
                            step=epoch)
-     # tf.summary.histogram('generative second dense layer', data=model.generative_net.layers[1].trainable_weights[0],
-      #                     step=epoch)
-      #tf.summary.histogram('generative output layer', data=model.generative_net.layers[2].trainable_weights[0],
-     #                      step=epoch)
 
     print('Epoch: {}, Test set ELBO: {}, '
           'time elapse for current epoch {}'.format(epoch,
                                                     elbo,
                                                     end_time - start_time))
     if epoch == epochs:
+        with writer.as_default():
+            tf.summary.trace_export(
+                name="my_func_trace",
+                step=0,
+                profiler_outdir=logdir)
         check_reconstruction_and_sampling_fidelity(model)
 
 def check_reconstruction_and_sampling_fidelity(vae_model):
     # get means of original columns based on 100 first rows
-    original_means = np.mean(df_values[:100], axis=0)
+    genes_to_validate = 40
+    original_means = np.mean(df_values, axis=0)
+    original_vars = np.var(df_values, axis=0)
 
-    mean, logvar = vae_model.encode(df_values[:100])
+    mean, logvar = vae_model.encode(df_values)
     z = vae_model.reparameterize(mean, logvar)
+
+    plot_dataset_in_3d_space(z, [])
+
     x_decoded = vae_model.decode(z)
 
-    decoded_means = np.mean(x_decoded[:100], axis=0)
+    decoded_means = np.mean(x_decoded, axis=0)
+    decoded_vars = np.var(x_decoded, axis=0)
 
     random_vector_for_generation = tf.random.normal(
         shape=[num_examples_to_generate, latent_dim])
     predictions = vae_model.sample(random_vector_for_generation)
 
-    sampled_means = np.mean(predictions[:100], axis=0)
+    sampled_means = np.mean(predictions, axis=0)
+    sampled_vars = np.var(predictions, axis=0)
 
-    pprint(list(zip(original_means, decoded_means, sampled_means)))
+    abs_dif = np.divide(np.sum(np.absolute(df_values - x_decoded), axis=0), df_values.shape[0])
+    abs_dif_by_mean = np.divide(np.divide(np.sum(np.absolute(df_values - x_decoded), axis=0), df_values.shape[0]), original_means)
+
+    mean_deviations = np.absolute(original_means - decoded_means)
+    print(pd.DataFrame(list(zip(df_columns, mean_deviations)), columns=['Gene', 'Mean Dif']).sort_values(by=['Mean Dif'], ascending=False))
+
+    print(predictions[0][:10])
+    print(df_values[5][:10])
+    print(x_decoded[5][:10])
+
+    #plot_reconstruction_fidelity(original_means[:genes_to_validate], sampled_means[:genes_to_validate], metric_name='Mean')
+    #plot_reconstruction_fidelity(original_vars[:genes_to_validate], sampled_vars[:genes_to_validate], metric_name='Variance')
+    #plot_reconstruction_fidelity(abs_dif[:genes_to_validate], metric_name='Absolute Difference (Sum by samples)')
+    #plot_reconstruction_fidelity(abs_dif_by_mean[:genes_to_validate], metric_name='Absolute Difference (Sum by samples, Divided by gene Mean)')
+
+    print('Sum of Mean difference by gene: ', np.mean(np.absolute(original_means - decoded_means)))
+    print('Sum of Absolute difference by gene: ', np.mean(np.sum(np.absolute(df_values - x_decoded), axis=0) / df_values.shape[0]))
+    print('Sum of Absolute difference divided by gene Mean: ', np.mean(abs_dif_by_mean))
+
+def plot_reconstruction_fidelity(original_values, sampled_values=[], metric_name=''):
+    n_groups = len(original_values)
+
+    # create plot
+    fig, ax = plt.subplots()
+    index = np.arange(n_groups)
+    bar_width = 0.35
+    opacity = 0.8
+
+    if len(sampled_values) > 0:
+        plt.bar(index, original_values, bar_width, alpha=opacity, color='b', label='Original')
+        plt.bar(index + bar_width, sampled_values, bar_width, alpha=opacity, color='g', label='Reconstructed')
+        plt.title('Original VS Reconstructed ' + metric_name)
+        plt.xticks(index + bar_width, list(df_columns)[:n_groups], rotation=90)
+        plt.ylabel(metric_name + ' Expression Level (Scaled)')
+        plt.legend()
+    else:
+        plt.bar(index, original_values, bar_width, alpha=opacity, color='b')
+        plt.title(metric_name)
+        plt.xticks(index, list(df_columns)[:n_groups], rotation=90)
+        plt.ylabel('Expression Level (Scaled)')
+        plt.legend()
+
+    plt.xlabel('Gene Name')
+
+    plt.tight_layout()
+    plt.show()
+
 
 model = VAE(latent_dim, (FEATURES_SIZE,))
 training()

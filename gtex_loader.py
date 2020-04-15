@@ -7,7 +7,9 @@ from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from pyensembl import EnsemblRelease
 
+ensemble_data = EnsemblRelease(96)
 GTEX_EXPRESSIONS_PATH = './data/v8_expressions.parquet'
 GTEX_SAMPLES_PATH = './data/v8_samples.parquet'
 TRAIN_SIZE = 4500
@@ -66,11 +68,13 @@ def get_gtex_dataset(problem='regression'):
     axis=1).values'''
 
 
-    X_train, X_test, Y_train, Y_test = train_test_split(scaled_df.values, Y, test_size = 0.2, random_state = 42, stratify=Y)
+    X_train, X_test, Y_train, Y_test = train_test_split(scaled_df.values, Y, test_size = 0.2, stratify=Y)
 
     #plot_dataset_in_normal_space(X_train[:TRAIN_SIZE], Y_train[:TRAIN_SIZE])
 
-    return (X_train[:TRAIN_SIZE], Y_train[:TRAIN_SIZE]), (X_test[:TEST_SIZE], Y_test[:TEST_SIZE]), scaled_df.values
+    gene_names = [ensemble_data.gene_name_of_gene_id(c) for c in list(scaled_df.columns)]
+
+    return (X_train[:TRAIN_SIZE], Y_train[:TRAIN_SIZE]), (X_test[:TEST_SIZE], Y_test[:TEST_SIZE]), scaled_df.values, gene_names
 
 # limit expressions to only 50 genes
 def get_genes_of_interest():
@@ -78,9 +82,9 @@ def get_genes_of_interest():
         content = [x.strip() for x in f.readlines()]
     return content
 
-def plot_dataset_in_normal_space(X, Y):
-    #X_tsne = TSNE(perplexity=50, n_components=3).fit_transform(X)
-    X_tsne = np.load('models/tsne_full_space.npy')
+def plot_dataset_in_3d_space(X, Y):
+    X_tsne = TSNE(perplexity=30, n_components=3).fit_transform(X)
+    #X_tsne = np.load('models/tsne_full_space.npy')
     colors_dict = {
         '24.5': 'blue',
         '34.5': 'orange',
@@ -89,11 +93,14 @@ def plot_dataset_in_normal_space(X, Y):
         '64.5': 'yellow',
         '74.5': 'green'
     }
-    class_colors = list(map(lambda y: colors_dict[str(y)], Y))
+    if len(Y) > 0:
+        class_colors = list(map(lambda y: colors_dict[str(y)], Y))
+    else:
+        class_colors = ['green' for i in range(len(X))]
 
     fig = plt.figure()
 
-    ax = Axes3D(fig)  # <-- Note the difference from your original code...
+    ax = Axes3D(fig)
 
     x_vals = X_tsne[:, 0:1]
     y_vals = X_tsne[:, 1:2]

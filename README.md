@@ -1,6 +1,22 @@
-Variational Auto-encoder for Gene Expression data
+Variational Auto-Encoder for Gene Expression data using Tensorflow 2
 
-- `model.py ` - Layers and properties of neural network
+Based on:
+1. https://www.tensorflow.org/tutorials/generative/cvae
+2. https://github.com/greenelab/tybalt
+2. https://arxiv.org/pdf/1908.06278.pdf
+
+Progress of the project:
+- [x] Baseline model creation
+- [x] Functions for evaluating mean, absolute difference and grouping in the latent space
+- [ ] Model tuning 
+   * latent space size
+   * batch size, learning rate (epochs number should be determined with early stopping)
+   * number of additional dense layers, number of neurons in each additional layer
+- [ ] Conditional VAE model (multiple conditions?)
+- [ ] b-VAE model (MSE / KL-divergence weight in the loss function)
+- [ ] Correlated VAE (https://arxiv.org/pdf/1905.05335.pdf)
+
+- `model.py ` - Layers and properties of the neural network
 - `gtex_loder.py` - Loading gene expression dataset
 - `vae_training.py` - Model Training and Testing
 
