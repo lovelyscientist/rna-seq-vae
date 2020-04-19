@@ -11,7 +11,7 @@ import pandas as pd
 logdir = "./logs/run3"
 writer = tf.summary.create_file_writer(logdir)
 
-(train_samples, _), (test_samples, _), df_values, df_columns = get_gtex_dataset()
+(train_samples, _), (test_samples, _), df_values, df_columns, y_values = get_gtex_dataset()
 
 train_samples = train_samples.astype('float32')
 test_samples = test_samples.astype('float32')
@@ -35,8 +35,8 @@ def compute_loss(model, x, epoch=None):
   z = model.reparameterize(mean, logvar)
   x_logit = model.decode(z)
 
-  reconstruction_loss = tf.reduce_mean(tf.square(tf.subtract(x, x_logit)))
-  #reconstruction_loss = tf.reduce_sum(tf.keras.losses.binary_crossentropy(x, x_logit, from_logits=False))
+  #reconstruction_loss = tf.reduce_mean(tf.square(tf.subtract(x, x_logit)))
+  reconstruction_loss = tf.reduce_sum(tf.keras.losses.binary_crossentropy(x, x_logit, from_logits=False))
   kl_loss = -0.5 * tf.reduce_sum(1 + logvar - tf.square(mean) - tf.exp(logvar))
 
 
@@ -95,7 +95,7 @@ def check_reconstruction_and_sampling_fidelity(vae_model):
     mean, logvar = vae_model.encode(df_values)
     z = vae_model.reparameterize(mean, logvar)
 
-    plot_dataset_in_3d_space(z, [])
+    #plot_dataset_in_3d_space(z, y_values)
 
     x_decoded = vae_model.decode(z)
 

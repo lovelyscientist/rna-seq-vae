@@ -1,9 +1,10 @@
 import pandas as pd
 import numpy as np
 import pyarrow.parquet as pq
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.manifold import TSNE
+from sklearn.pipeline import Pipeline
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -44,18 +45,25 @@ def get_gtex_dataset(problem='regression'):
 
     #expressions = get_expressions()[get_genes_of_interest()]
     data = samples.join(expressions, on="Name", how="inner")
-    data = data[(data['Avg_age'] == 64.5)]
+    #data = data[(data['Avg_age'] == 64.5)]
 
     if problem == 'classification':
         Y = data['Age'].values
     else:
         Y = data['Avg_age'].values
 
+    # removing labels
     columns_to_drop = ["Tissue", "Sex", "Age", "Death", "Subtissue", "Avg_age"]
     valid_columns = data.columns.drop(columns_to_drop)
-    scaled_df = pd.DataFrame(MinMaxScaler().fit_transform(data[valid_columns]), columns=valid_columns)
-    scaled_df.to_csv('gtex_text_gens_vae.csv')
-    print(scaled_df.info())
+
+    # normalize expression data for nn
+    steps = [('standardization', StandardScaler()), ('normalization', MinMaxScaler())]
+    pre_processing_pipeline = Pipeline(steps)
+    transformed_data = pre_processing_pipeline.fit_transform(data[valid_columns])
+
+    # save data to dataframe
+    scaled_df = pd.DataFrame(transformed_data, columns=valid_columns)
+
 
     '''X = pd.concat([
         scaled_df, # scaled expressions
@@ -70,11 +78,11 @@ def get_gtex_dataset(problem='regression'):
 
     X_train, X_test, Y_train, Y_test = train_test_split(scaled_df.values, Y, test_size = 0.2, stratify=Y)
 
-    #plot_dataset_in_normal_space(X_train[:TRAIN_SIZE], Y_train[:TRAIN_SIZE])
+    plot_dataset_in_3d_space(scaled_df.values, Y)
 
     gene_names = [ensemble_data.gene_name_of_gene_id(c) for c in list(scaled_df.columns)]
 
-    return (X_train[:TRAIN_SIZE], Y_train[:TRAIN_SIZE]), (X_test[:TEST_SIZE], Y_test[:TEST_SIZE]), scaled_df.values, gene_names
+    return (X_train[:TRAIN_SIZE], Y_train[:TRAIN_SIZE]), (X_test[:TEST_SIZE], Y_test[:TEST_SIZE]), scaled_df.values, gene_names, Y
 
 # limit expressions to only 50 genes
 def get_genes_of_interest():
@@ -83,8 +91,14 @@ def get_genes_of_interest():
     return content
 
 def plot_dataset_in_3d_space(X, Y):
-    X_tsne = TSNE(perplexity=30, n_components=3).fit_transform(X)
-    #X_tsne = np.load('models/tsne_full_space.npy')
+    tsne_model = TSNE(n_components=3)
+    X_3d = tsne_model.fit_transform(X, Y)
+    np.save('models/tsne_full_space.npy', X_3d)
+    #print(pca_model.explained_variance_ratio_)
+
+
+    #X_3d = np.load('models/tsne_full_space.npy')
+
     colors_dict = {
         '24.5': 'blue',
         '34.5': 'orange',
@@ -93,18 +107,16 @@ def plot_dataset_in_3d_space(X, Y):
         '64.5': 'yellow',
         '74.5': 'green'
     }
-    if len(Y) > 0:
-        class_colors = list(map(lambda y: colors_dict[str(y)], Y))
-    else:
-        class_colors = ['green' for i in range(len(X))]
+
+    class_colors = list(map(lambda y: colors_dict[str(y)], Y))
 
     fig = plt.figure()
 
     ax = Axes3D(fig)
 
-    x_vals = X_tsne[:, 0:1]
-    y_vals = X_tsne[:, 1:2]
-    z_vals = X_tsne[:, 2:3]
+    x_vals = X_3d[:, 0:1]
+    y_vals = X_3d[:, 1:2]
+    z_vals = X_3d[:, 2:3]
 
     ax.scatter(x_vals, y_vals, z_vals, c=class_colors, alpha=0.4)
     ax.set_xlabel('X-axis')

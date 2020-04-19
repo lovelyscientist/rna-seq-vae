@@ -1,9 +1,10 @@
-Variational Auto-Encoder for Gene Expression data using Tensorflow 2
+Variational Auto-Encoder for GTEx dataset (V8) using Tensorflow 2
 
 Based on:
 1. https://www.tensorflow.org/tutorials/generative/cvae
 2. https://github.com/greenelab/tybalt
-2. https://arxiv.org/pdf/1908.06278.pdf
+3. https://arxiv.org/pdf/1908.06278.pdf
+4. https://gtexportal.org/home/
 
 Progress of the project:
 - [x] Baseline model creation
