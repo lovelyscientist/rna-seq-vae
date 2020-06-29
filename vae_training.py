@@ -11,7 +11,7 @@ import pandas as pd
 logdir = "./logs/run3"
 writer = tf.summary.create_file_writer(logdir)
 
-(train_samples, _), (test_samples, _), df_values, df_columns, y_values = get_gtex_dataset()
+(train_samples, train_y), (test_samples, test_y), df_values, df_columns, y_values = get_gtex_dataset()
 
 train_samples = train_samples.astype('float32')
 test_samples = test_samples.astype('float32')
@@ -24,16 +24,19 @@ latent_dim = 100
 num_examples_to_generate = 100
 FEATURES_SIZE = 1000
 
-train_dataset = tf.data.Dataset.from_tensor_slices(train_samples).shuffle(TRAIN_BUF).batch(BATCH_SIZE)
-test_dataset = tf.data.Dataset.from_tensor_slices(test_samples).shuffle(TEST_BUF).batch(BATCH_SIZE)
+# .shuffle(TRAIN_BUF).batch(BATCH_SIZE)
+train_dataset = tf.data.Dataset.from_tensor_slices(train_samples).batch(BATCH_SIZE)
+test_dataset = tf.data.Dataset.from_tensor_slices(test_samples).batch(BATCH_SIZE)
+train_y_dataset = tf.data.Dataset.from_tensor_slices(train_y).batch(BATCH_SIZE)
+test_y_dataset = tf.data.Dataset.from_tensor_slices(test_y).batch(BATCH_SIZE)
 
 optimizer = tf.keras.optimizers.Adam(0.0005)
 
 @tf.function
-def compute_loss(model, x, epoch=None):
-  mean, logvar = model.encode(x)
+def compute_loss(model, x, y, epoch=None):
+  mean, logvar = model.encode(x, y)
   z = model.reparameterize(mean, logvar)
-  x_logit = model.decode(z)
+  x_logit = model.decode(z, y)
 
   #reconstruction_loss = tf.reduce_mean(tf.square(tf.subtract(x, x_logit)))
   reconstruction_loss = tf.reduce_sum(tf.keras.losses.binary_crossentropy(x, x_logit, from_logits=False))
@@ -48,9 +51,9 @@ def compute_loss(model, x, epoch=None):
   return tf.reduce_sum(reconstruction_loss + kl_loss)
 
 @tf.function
-def compute_apply_gradients(model, x, optimizer):
+def compute_apply_gradients(model, x, y, optimizer):
   with tf.GradientTape() as tape:
-    loss = compute_loss(model, x)
+    loss = compute_loss(model, x, y)
   gradients = tape.gradient(loss, model.trainable_variables)
   optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
@@ -59,13 +62,13 @@ def training():
   tf.summary.trace_on(graph=True, profiler=True)
   for epoch in range(1, epochs + 1):
     start_time = time.time()
-    for train_x in train_dataset:
-      compute_apply_gradients(model, train_x, optimizer)
+    for train_y, train_x in zip(train_y_dataset, train_dataset):
+      compute_apply_gradients(model, train_x, train_y, optimizer)
     end_time = time.time()
 
     loss = tf.keras.metrics.Mean()
-    for test_x in test_dataset:
-      loss(compute_loss(model, test_x, epoch))
+    for test_y, test_x in zip(test_y_dataset, test_dataset):
+      loss(compute_loss(model, test_x, test_y, epoch))
     elbo = -loss.result()
 
     with writer.as_default():
@@ -92,19 +95,19 @@ def check_reconstruction_and_sampling_fidelity(vae_model):
     original_means = np.mean(df_values, axis=0)
     original_vars = np.var(df_values, axis=0)
 
-    mean, logvar = vae_model.encode(df_values)
+    mean, logvar = vae_model.encode(df_values, y_values)
     z = vae_model.reparameterize(mean, logvar)
 
     #plot_dataset_in_3d_space(z, y_values)
 
-    x_decoded = vae_model.decode(z)
+    x_decoded = vae_model.decode(z, y_values)
 
     decoded_means = np.mean(x_decoded, axis=0)
     decoded_vars = np.var(x_decoded, axis=0)
 
     random_vector_for_generation = tf.random.normal(
         shape=[num_examples_to_generate, latent_dim])
-    predictions = vae_model.sample(random_vector_for_generation)
+    predictions = vae_model.sample(random_vector_for_generation, 24.5)
 
     sampled_means = np.mean(predictions, axis=0)
     sampled_vars = np.var(predictions, axis=0)

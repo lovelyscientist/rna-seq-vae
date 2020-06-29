@@ -5,6 +5,7 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.manifold import TSNE
 from sklearn.pipeline import Pipeline
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -64,7 +65,6 @@ def get_gtex_dataset(problem='regression'):
     # save data to dataframe
     scaled_df = pd.DataFrame(transformed_data, columns=valid_columns)
 
-
     '''X = pd.concat([
         scaled_df, # scaled expressions
         pd.get_dummies(data['Tissue'].values, prefix='tissue'), # one-hot-encoded tissues
@@ -78,7 +78,7 @@ def get_gtex_dataset(problem='regression'):
 
     X_train, X_test, Y_train, Y_test = train_test_split(scaled_df.values, Y, test_size = 0.2, stratify=Y)
 
-    plot_dataset_in_3d_space(scaled_df.values, Y)
+    #plot_dataset_in_3d_space(scaled_df.values, Y)
 
     gene_names = [ensemble_data.gene_name_of_gene_id(c) for c in list(scaled_df.columns)]
 
@@ -123,3 +123,5 @@ def plot_dataset_in_3d_space(X, Y):
     ax.set_ylabel('Y-axis')
     ax.set_zlabel('Z-axis')
     plt.show()
+
+get_gtex_dataset()
