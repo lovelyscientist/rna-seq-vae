@@ -4,7 +4,8 @@ Based on:
 1. https://www.tensorflow.org/tutorials/generative/cvae
 2. https://github.com/greenelab/tybalt
 3. https://arxiv.org/pdf/1908.06278.pdf
-4. https://gtexportal.org/home/
+4. https://github.com/timbmg/VAE-CVAE-MNIST
+5. https://gtexportal.org/home/
 
 Progress of the project:
 - [x] Baseline model creation

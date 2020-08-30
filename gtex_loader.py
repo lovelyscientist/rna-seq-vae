@@ -37,7 +37,7 @@ def get_samples(path=GTEX_SAMPLES_PATH):
     return samples
 
 # load whole dataset
-def get_gtex_dataset(problem='regression'):
+def get_gtex_dataset(problem='classification'):
     samples = get_samples()
     expressions = get_expressions()
 

@@ -1,5 +1,5 @@
 import tensorflow as tf
-from model import VAE
+from tf_model import VAE
 import time
 from gtex_loader import get_gtex_dataset, plot_dataset_in_3d_space
 import numpy as np
