@@ -41,9 +41,8 @@ def main(args):
     test_tensor = TensorDataset(test, test_target)
     test_loader = DataLoader(dataset=test_tensor, batch_size=args.batch_size, shuffle=True)
 
-
     def loss_fn(recon_x, x, mean, log_var):
-        view_size = 1000
+        view_size = 1038
         ENTROPY = torch.nn.functional.binary_cross_entropy(
             recon_x.view(-1, view_size), x.view(-1, view_size), reduction='sum')
         KLD = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
@@ -62,7 +61,7 @@ def main(args):
     logs = defaultdict(list)
 
     for epoch in range(args.epochs):
-
+        train_loss = 0
         tracker_epoch = defaultdict(lambda: defaultdict(dict))
 
         for iteration, (x, y) in enumerate(data_loader):
@@ -81,6 +80,7 @@ def main(args):
                 tracker_epoch[id]['label'] = yi.item()
 
             loss = loss_fn(recon_x, x, mean, log_var)
+            train_loss += loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -96,7 +96,7 @@ def main(args):
                     c = torch.arange(0, 6).long().unsqueeze(1)
                     x = vae.inference(n=c.size(0), c=c)
                 else:
-                    x = vae.inference(n=6)
+                    x = vae.inference()
 
 
     with torch.no_grad():
@@ -104,9 +104,10 @@ def main(args):
             test_loss = 0
             for iteration, (x, y) in enumerate(test_loader):
                 recon_x, mean, log_var, z = vae(x, y)
-                test_loss += loss_fn(recon_x, x, mean, log_var)
+                test_loss = loss_fn(recon_x, x, mean, log_var)
 
-            print('====> Test set loss: {:.4f}'.format(test_loss))
+                if iteration == len(test_loader) - 1:
+                    print('====> Test set loss: {:.4f}'.format(test_loss.item()))
 
     '''with torch.no_grad():
         sample = torch.randn(64, args.latent_size).to(device)
@@ -117,11 +118,11 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--epochs", type=int, default=100)
-    parser.add_argument("--batch_size", type=int, default=50)
+    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--learning_rate", type=float, default=0.001)
-    parser.add_argument("--encoder_layer_sizes", type=list, default=[1000, 512])
-    parser.add_argument("--decoder_layer_sizes", type=list, default=[512, 1000])
+    parser.add_argument("--encoder_layer_sizes", type=list, default=[1038, 512, 256])
+    parser.add_argument("--decoder_layer_sizes", type=list, default=[256, 512, 1038])
     parser.add_argument("--latent_size", type=int, default=50)
     parser.add_argument("--print_every", type=int, default=100)
     parser.add_argument("--fig_root", type=str, default='figs')

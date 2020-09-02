@@ -17,6 +17,7 @@ GTEX_SAMPLES_PATH = './data/v8_samples.parquet'
 TRAIN_SIZE = 4500
 TEST_SIZE = 1100
 
+
 # load gene expression data
 def get_expressions(path=GTEX_EXPRESSIONS_PATH):
     if path.endswith(".parquet"):
@@ -24,6 +25,7 @@ def get_expressions(path=GTEX_EXPRESSIONS_PATH):
     else:
         separator = "," if path.endswith(".csv") else "\t"
         return pd.read_csv(path, sep=separator).set_index("Name")
+
 
 # load additional metadata of the dataset
 def get_samples(path=GTEX_SAMPLES_PATH):
@@ -35,6 +37,7 @@ def get_samples(path=GTEX_SAMPLES_PATH):
                                   ['alive/NA', 'ventilator case', '<10 min.', '<1 hr', '1-24 hr.', '>1 day'],
                                   inplace=True)
     return samples
+
 
 # load whole dataset
 def get_gtex_dataset(problem='classification'):
@@ -65,24 +68,21 @@ def get_gtex_dataset(problem='classification'):
     # save data to dataframe
     scaled_df = pd.DataFrame(transformed_data, columns=valid_columns)
 
-    '''X = pd.concat([
+    X = pd.concat([
         scaled_df, # scaled expressions
         pd.get_dummies(data['Tissue'].values, prefix='tissue'), # one-hot-encoded tissues
         pd.get_dummies(data['Sex'].values, prefix='sex'), # one-hot-encoded gender
-        pd.get_dummies(data['Death'].values, prefix='death'), # one-hot-encoded death type
-        pd.DataFrame(data=MinMaxScaler().fit_transform(Y.reshape(-1, 1)), columns=['Age'])],
-        #pd.get_dummies(Y, prefix='age')],  # one-hot-encoded death type
-        #pd.DataFrame(data=Y, columns=['Age'])], # age
-    axis=1).values'''
+        pd.get_dummies(data['Death'].values, prefix='death')], # one-hot-encoded death type
+        axis=1).values
 
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = 0.2, stratify=Y)
 
-    X_train, X_test, Y_train, Y_test = train_test_split(scaled_df.values, Y, test_size = 0.2, stratify=Y)
-
-    #plot_dataset_in_3d_space(scaled_df.values, Y)
+    # plot_dataset_in_3d_space(scaled_df.values, Y)
 
     gene_names = [ensemble_data.gene_name_of_gene_id(c) for c in list(scaled_df.columns)]
 
-    return (X_train[:TRAIN_SIZE], Y_train[:TRAIN_SIZE]), (X_test[:TEST_SIZE], Y_test[:TEST_SIZE]), scaled_df.values, gene_names, Y
+    return (X_train, Y_train), (X_test, Y_test), scaled_df.values, gene_names, Y
+
 
 # limit expressions to only 50 genes
 def get_genes_of_interest():
@@ -90,14 +90,14 @@ def get_genes_of_interest():
         content = [x.strip() for x in f.readlines()]
     return content
 
+
 def plot_dataset_in_3d_space(X, Y):
     tsne_model = TSNE(n_components=3)
     X_3d = tsne_model.fit_transform(X, Y)
     np.save('models/tsne_full_space.npy', X_3d)
-    #print(pca_model.explained_variance_ratio_)
 
-
-    #X_3d = np.load('models/tsne_full_space.npy')
+    # print(pca_model.explained_variance_ratio_)
+    # X_3d = np.load('models/tsne_full_space.npy')
 
     colors_dict = {
         '24.5': 'blue',
@@ -123,5 +123,3 @@ def plot_dataset_in_3d_space(X, Y):
     ax.set_ylabel('Y-axis')
     ax.set_zlabel('Z-axis')
     plt.show()
-
-get_gtex_dataset()

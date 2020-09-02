@@ -36,7 +36,7 @@ class VAE(nn.Module):
             decoder_layer_sizes, latent_size, conditional, num_labels)
 
     def forward(self, x, c=None):
-        view_size = 1000
+        view_size = 1038
         if x.dim() > 2:
             x = x.view(-1, view_size)
 
@@ -52,7 +52,7 @@ class VAE(nn.Module):
 
         return recon_x, means, log_var, z
 
-    def inference(self, n=1, c=None):
+    def inference(self, n=10, c=None):
 
         batch_size = n
         z = torch.randn([batch_size, self.latent_size])
