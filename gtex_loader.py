@@ -21,10 +21,12 @@ TEST_SIZE = 1100
 # load gene expression data
 def get_expressions(path=GTEX_EXPRESSIONS_PATH):
     if path.endswith(".parquet"):
-        return pq.read_table(path).to_pandas().set_index("Name")
+        genes_to_choose = pd.read_csv('data/aging_significant_genes.csv')['ids'].values
+        return pq.read_table(path).to_pandas().set_index("Name")[genes_to_choose]
     else:
+        genes_to_choose = pd.read_csv('data/aging_significant_genes.csv')['ids'].values
         separator = "," if path.endswith(".csv") else "\t"
-        return pd.read_csv(path, sep=separator).set_index("Name")
+        return pd.read_csv(path, sep=separator).set_index("Name")[genes_to_choose]
 
 
 # load additional metadata of the dataset
@@ -80,6 +82,8 @@ def get_gtex_dataset(problem='classification'):
     # plot_dataset_in_3d_space(scaled_df.values, Y)
 
     gene_names = [ensemble_data.gene_name_of_gene_id(c) for c in list(scaled_df.columns)]
+
+    print(Y[:10])
 
     return (X_train, Y_train), (X_test, Y_test), scaled_df.values, gene_names, Y
 
