@@ -70,12 +70,14 @@ def get_gtex_dataset(problem='classification'):
     # save data to dataframe
     scaled_df = pd.DataFrame(transformed_data, columns=valid_columns)
 
-    X = pd.concat([
+    X = scaled_df.values
+
+    '''pd.concat([
         scaled_df, # scaled expressions
         pd.get_dummies(data['Tissue'].values, prefix='tissue'), # one-hot-encoded tissues
         pd.get_dummies(data['Sex'].values, prefix='sex'), # one-hot-encoded gender
         pd.get_dummies(data['Death'].values, prefix='death')], # one-hot-encoded death type
-        axis=1).values
+        axis=1).values'''
 
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = 0.2, stratify=Y)
 

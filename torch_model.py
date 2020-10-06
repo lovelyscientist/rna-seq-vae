@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter('runs/lgbm')
 
 def idx2onehot(idx, n):
 
@@ -36,7 +37,7 @@ class VAE(nn.Module):
             decoder_layer_sizes, latent_size, conditional, num_labels)
 
     def forward(self, x, c=None):
-        view_size = 1038
+        view_size = 1000
         if x.dim() > 2:
             x = x.view(-1, view_size)
 

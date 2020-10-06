@@ -4,15 +4,13 @@ import time
 import torch
 import argparse
 import pandas as pd
-from sklearn import preprocessing
-import seaborn as sns
 import matplotlib.pyplot as plt
-from torchvision import transforms
-from torchvision.datasets import MNIST
 from torch.utils.data import DataLoader, TensorDataset
 from collections import defaultdict
 from torch_model import VAE
 from gtex_loader import get_gtex_dataset
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter('runs/lgbm')
 
 
 def main(args):
@@ -30,6 +28,7 @@ def main(args):
     le.fit(Y_train)
     train_targets = le.transform(Y_train)
     test_targets = le.transform(Y_test)
+    print(le.classes_)
 
     train_target = torch.as_tensor(train_targets)
     train = torch.tensor(X_train.astype(np.float32))
@@ -41,8 +40,9 @@ def main(args):
     test_tensor = TensorDataset(test, test_target)
     test_loader = DataLoader(dataset=test_tensor, batch_size=args.batch_size, shuffle=True)
 
+
     def loss_fn(recon_x, x, mean, log_var):
-        view_size = 1038
+        view_size = 1000
         ENTROPY = torch.nn.functional.binary_cross_entropy(
             recon_x.view(-1, view_size), x.view(-1, view_size), reduction='sum')
         KLD = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
@@ -55,6 +55,11 @@ def main(args):
         decoder_layer_sizes=args.decoder_layer_sizes,
         conditional=args.conditional,
         num_labels=6 if args.conditional else 0).to(device)
+
+    dataiter = iter(data_loader)
+    genes, labels = dataiter.next()
+    writer.add_graph(vae, genes)
+    writer.close()
 
     optimizer = torch.optim.Adam(vae.parameters(), lr=args.learning_rate)
 
@@ -112,20 +117,20 @@ def main(args):
     with torch.no_grad():
         y_synthetic = []
         x_synthetic = []
-        for i in range(5):
-            c = np.array([i+1 for j in range(200)])
+        for i in range(6):
+            c = np.array([i for j in range(2000)])
             x = vae.inference(n=len(c), c=c)
-            x_synthetic += list(x.detach().numpy()[:, :1000])
+            x_synthetic += list(x.detach().numpy()[:,:1000])
             y_synthetic += list(np.ravel(le.inverse_transform(c)))
 
-        x_df = pd.DataFrame(x_synthetic, columns=gene_names).to_csv('data/expressions_synthetic.csv', index=False)
-        y_df = pd.DataFrame(y_synthetic, columns=['Age']).to_csv('data/samples_synthetic.csv', index=False)
+        x_df = pd.DataFrame(x_synthetic, columns=gene_names).to_csv('data/expressions_synthetic_2000.csv', index=False)
+        y_df = pd.DataFrame(y_synthetic, columns=['Age']).to_csv('data/samples_synthetic_2000.csv', index=False)
 
-    #check_reconstruction_and_sampling_fidelity(vae, scaled_df_values, Y, gene_names)
+    check_reconstruction_and_sampling_fidelity(vae, scaled_df_values, Y, gene_names)
 
 def check_reconstruction_and_sampling_fidelity(vae_model,scaled_df_values, Y, gene_names):
     # get means of original columns based on 100 first rows
-    genes_to_validate = 100
+    genes_to_validate = 40
     original_means = np.mean(scaled_df_values, axis=0)
     original_vars = np.var(scaled_df_values, axis=0)
 
@@ -203,8 +208,8 @@ if __name__ == '__main__':
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--learning_rate", type=float, default=0.001)
-    parser.add_argument("--encoder_layer_sizes", type=list, default=[1038, 512, 256])
-    parser.add_argument("--decoder_layer_sizes", type=list, default=[256, 512, 1038])
+    parser.add_argument("--encoder_layer_sizes", type=list, default=[1000, 512, 256])
+    parser.add_argument("--decoder_layer_sizes", type=list, default=[256, 512, 1000])
     parser.add_argument("--latent_size", type=int, default=50)
     parser.add_argument("--print_every", type=int, default=100)
     parser.add_argument("--fig_root", type=str, default='figs')
