@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import pyarrow.parquet as pq
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler, QuantileTransformer, Normalizer
 from sklearn.model_selection import train_test_split
 from sklearn.manifold import TSNE
 from sklearn.pipeline import Pipeline
@@ -63,7 +63,8 @@ def get_gtex_dataset(problem='classification'):
     valid_columns = data.columns.drop(columns_to_drop)
 
     # normalize expression data for nn
-    steps = [('standardization', StandardScaler()), ('normalization', MinMaxScaler())]
+    #steps = [('standardization', StandardScaler()), ('normalization', MinMaxScaler()), ('quantiles', QuantileTransformer(output_distribution='normal'))]
+    steps = [('minmax', MinMaxScaler())]
     pre_processing_pipeline = Pipeline(steps)
     transformed_data = pre_processing_pipeline.fit_transform(data[valid_columns])
 
@@ -82,6 +83,11 @@ def get_gtex_dataset(problem='classification'):
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = 0.2, stratify=Y)
 
     # plot_dataset_in_3d_space(scaled_df.values, Y)
+    find_max_latent_space_size(scaled_df.values, 10)
+    find_max_latent_space_size(scaled_df.values, 50)
+    find_max_latent_space_size(scaled_df.values, 100)
+    find_max_latent_space_size(scaled_df.values, 150)
+    find_max_latent_space_size(scaled_df.values, 200)
 
     gene_names = [ensemble_data.gene_name_of_gene_id(c) for c in list(scaled_df.columns)]
 
@@ -95,6 +101,12 @@ def get_genes_of_interest():
     with open('./data/selected_genes.txt') as f:
         content = [x.strip() for x in f.readlines()]
     return content
+
+
+def find_max_latent_space_size(X, components):
+    pca = PCA(n_components=components)
+    pca.fit(X)
+    print('With', components, 'explained variance is', np.sum(pca.explained_variance_ratio_))
 
 
 def plot_dataset_in_3d_space(X, Y):

@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from copy import copy
 import time
 import torch
 import argparse
@@ -10,11 +11,13 @@ from collections import defaultdict
 from torch_model import VAE
 from gtex_loader import get_gtex_dataset
 from torch.utils.tensorboard import SummaryWriter
+from sklearn.preprocessing import LabelEncoder
 writer = SummaryWriter('runs/lgbm')
 
 
 def main(args):
     torch.manual_seed(args.seed)
+    latest_loss = torch.tensor(1)
 
     if torch.cuda.is_available():
         torch.cuda.manual_seed(args.seed)
@@ -24,7 +27,7 @@ def main(args):
 
     (X_train, Y_train), (X_test, Y_test), scaled_df_values, gene_names, Y = get_gtex_dataset()
 
-    le = preprocessing.LabelEncoder()
+    le = LabelEncoder()
     le.fit(Y_train)
     train_targets = le.transform(Y_train)
     test_targets = le.transform(Y_test)
@@ -40,14 +43,24 @@ def main(args):
     test_tensor = TensorDataset(test, test_target)
     test_loader = DataLoader(dataset=test_tensor, batch_size=args.batch_size, shuffle=True)
 
-
     def loss_fn(recon_x, x, mean, log_var):
         view_size = 1000
-        ENTROPY = torch.nn.functional.binary_cross_entropy(
-            recon_x.view(-1, view_size), x.view(-1, view_size), reduction='sum')
+        #ENTROPY = torch.nn.functional.binary_cross_entropy(
+        #    recon_x.view(-1, view_size), x.view(-1, view_size), reduction='sum')
+        HALF_LOG_TWO_PI = 0.91893
+        MSE = torch.sum((x - recon_x)**2)
         KLD = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
-
-        return (ENTROPY + KLD) / x.size(0)
+        gamma_square = 0
+        if torch.eq(latest_loss, torch.tensor(1)):
+            gamma_square = MSE
+        else:
+            gamma_square = min(MSE, latest_loss.clone())
+        #print(gamma_square)
+        #print(MSE,KLD)
+        return {'GL': (MSE/(2*gamma_square.clone()) + torch.log(torch.sqrt(gamma_square)) + HALF_LOG_TWO_PI + KLD) / x.size(0), 'MSE': MSE}
+        #return {'GL': (50*MSE + KLD) / x.size(0), 'MSE': MSE}
+        beta = 0.1
+        #return {'GL': (beta*MSE + (1-beta)*KLD) / x.size(0), 'MSE': MSE}
 
     vae = VAE(
         encoder_layer_sizes=args.encoder_layer_sizes,
@@ -84,14 +97,19 @@ def main(args):
                 tracker_epoch[id]['y'] = z[i, 1].item()
                 tracker_epoch[id]['label'] = yi.item()
 
-            loss = loss_fn(recon_x, x, mean, log_var)
+            multiple_losses = loss_fn(recon_x, x, mean, log_var)
+            loss = multiple_losses['GL'].clone()
             train_loss += loss
 
+            latest_loss = multiple_losses['MSE'].detach()
+
             optimizer.zero_grad()
-            loss.backward()
+            loss.backward(retain_graph=True)
             optimizer.step()
 
             logs['loss'].append(loss.item())
+
+
 
             if iteration % args.print_every == 0 or iteration == len(data_loader)-1:
                 print("Epoch {:02d}/{:02d} Batch {:04d}/{:d}, Loss {:9.4f}".format(
@@ -109,7 +127,7 @@ def main(args):
             test_loss = 0
             for iteration, (x, y) in enumerate(test_loader):
                 recon_x, mean, log_var, z = vae(x, y)
-                test_loss = loss_fn(recon_x, x, mean, log_var)
+                test_loss = loss_fn(recon_x, x, mean, log_var)['GL']
 
                 if iteration == len(test_loader) - 1:
                     print('====> Test set loss: {:.4f}'.format(test_loss.item()))
@@ -145,9 +163,17 @@ def check_reconstruction_and_sampling_fidelity(vae_model,scaled_df_values, Y, ge
     #decoded_vars = np.var(x_decoded, axis=0)
 
     with torch.no_grad():
-        c = torch.arange(0, 6).long().unsqueeze(1)
+        number_of_samples = 2000
+        class_0 = [0 for i in range(number_of_samples)]
+        class_1 = [1 for i in range(number_of_samples)]
+        class_2 = [2 for i in range(number_of_samples)]
+        class_3 = [3 for i in range(number_of_samples)]
+        class_4 = [4 for i in range(number_of_samples)]
+        class_5 = [5 for i in range(number_of_samples)]
+        all_samples = np.array(class_0 + class_1 + class_2 + class_3 + class_4 + class_5)
+        c = torch.from_numpy(all_samples)
         print(c)
-        x = vae_model.inference(n=c.size(0), c=c)
+        x = vae_model.inference(n=len(all_samples), c=c)
         print(x)
 
     sampled_means = np.mean(x.detach().numpy(), axis=0)
@@ -210,7 +236,7 @@ if __name__ == '__main__':
     parser.add_argument("--learning_rate", type=float, default=0.001)
     parser.add_argument("--encoder_layer_sizes", type=list, default=[1000, 512, 256])
     parser.add_argument("--decoder_layer_sizes", type=list, default=[256, 512, 1000])
-    parser.add_argument("--latent_size", type=int, default=50)
+    parser.add_argument("--latent_size", type=int, default=100)
     parser.add_argument("--print_every", type=int, default=100)
     parser.add_argument("--fig_root", type=str, default='figs')
     parser.add_argument("--conditional", action='store_true')
