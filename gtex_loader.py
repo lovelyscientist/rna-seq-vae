@@ -10,6 +10,7 @@ from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from pyensembl import EnsemblRelease
+import plotly.graph_objects as go
 
 ensemble_data = EnsemblRelease(96)
 GTEX_EXPRESSIONS_PATH = './data/v8_expressions.parquet'
@@ -63,8 +64,7 @@ def get_gtex_dataset(problem='classification'):
     valid_columns = data.columns.drop(columns_to_drop)
 
     # normalize expression data for nn
-    #steps = [('standardization', StandardScaler()), ('normalization', MinMaxScaler()), ('quantiles', QuantileTransformer(output_distribution='normal'))]
-    steps = [('minmax', MinMaxScaler())]
+    steps = [('standardization', StandardScaler()), ('normalization', MinMaxScaler())]
     pre_processing_pipeline = Pipeline(steps)
     transformed_data = pre_processing_pipeline.fit_transform(data[valid_columns])
 
@@ -82,12 +82,18 @@ def get_gtex_dataset(problem='classification'):
 
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = 0.2, stratify=Y)
 
+    syn_x = pd.read_csv('data/expressions_synthetic_2000.csv')
+    syn_y = pd.read_csv('data/samples_synthetic_2000.csv')
+
     # plot_dataset_in_3d_space(scaled_df.values, Y)
-    find_max_latent_space_size(scaled_df.values, 10)
-    find_max_latent_space_size(scaled_df.values, 50)
-    find_max_latent_space_size(scaled_df.values, 100)
-    find_max_latent_space_size(scaled_df.values, 150)
-    find_max_latent_space_size(scaled_df.values, 200)
+    find_max_latent_space_size(syn_x.values, 10)
+    find_max_latent_space_size(syn_x.values, 50)
+    find_max_latent_space_size(syn_x.values, 100)
+    find_max_latent_space_size(syn_x.values, 150)
+    find_max_latent_space_size(syn_x.values, 200)
+
+    tsne_with_plotly(scaled_df.values, Y, classes=True)
+    #tsne_with_plotly(syn_x, list(syn_y.values), classes=True)
 
     gene_names = [ensemble_data.gene_name_of_gene_id(c) for c in list(scaled_df.columns)]
 
@@ -109,22 +115,33 @@ def find_max_latent_space_size(X, components):
     print('With', components, 'explained variance is', np.sum(pca.explained_variance_ratio_))
 
 
-def plot_dataset_in_3d_space(X, Y):
+def plot_dataset_in_3d_space(X, Y, classes=False):
+    print(Y[0])
     tsne_model = TSNE(n_components=3)
-    X_3d = tsne_model.fit_transform(X, Y)
-    np.save('models/tsne_full_space.npy', X_3d)
+    X_3d = tsne_model.fit_transform(X)
+    #np.save('models/tsne_full_space.npy', X_3d)
 
     # print(pca_model.explained_variance_ratio_)
     # X_3d = np.load('models/tsne_full_space.npy')
 
-    colors_dict = {
-        '24.5': 'blue',
-        '34.5': 'orange',
-        '44.5': 'red',
-        '54.5': 'purple',
-        '64.5': 'yellow',
-        '74.5': 'green'
-    }
+    if classes:
+        colors_dict = {
+            '20-29': 'blue',
+            '30-39': 'orange',
+            '40-49': 'red',
+            '50-59': 'purple',
+            '60-69': 'yellow',
+            '70-79': 'green'
+        }
+    else:
+        colors_dict = {
+            '24.5': 'blue',
+            '34.5': 'orange',
+            '44.5': 'red',
+            '54.5': 'purple',
+            '64.5': 'yellow',
+            '74.5': 'green'
+        }
 
     class_colors = list(map(lambda y: colors_dict[str(y)], Y))
 
@@ -141,3 +158,63 @@ def plot_dataset_in_3d_space(X, Y):
     ax.set_ylabel('Y-axis')
     ax.set_zlabel('Z-axis')
     plt.show()
+
+
+def tsne_with_plotly(X, Y, classes=False):
+    tsne_model = TSNE(n_components=3)
+    X_3d = tsne_model.fit_transform(X)
+    np.save('models/tsne_full_space.npy', X_3d)
+
+    # print(pca_model.explained_variance_ratio_)
+    # X_3d = np.load('models/tsne_full_space.npy')
+
+    if classes:
+        colors_dict = {
+            "['20-29']": 'blue',
+            "['30-39']": 'orange',
+            "['40-49']": 'red',
+            "['50-59']": 'purple',
+            "['60-69']": 'yellow',
+            "['70-79']": 'green',
+            "20-20": 'blue',
+            "30-39": 'orange',
+            "40-49": 'red',
+            "50-59": 'purple',
+            "60-69": 'yellow',
+            "70-79": 'green'
+        }
+    else:
+        colors_dict = {
+            '24.5': 'blue',
+            '34.5': 'orange',
+            '44.5': 'red',
+            '54.5': 'purple',
+            '64.5': 'yellow',
+            '74.5': 'green'
+        }
+
+    class_colors = list(map(lambda y: colors_dict [str(y)], Y))
+
+    x_vals = list(np.array(X_3d[:, 0:1]).flatten())
+    y_vals = list(np.array(X_3d[:, 1:2]).flatten())
+    z_vals = list(np.array(X_3d[:, 2:3]).flatten())
+
+    print(x_vals[0:5])
+    print(y_vals[0:5])
+    print(z_vals[0:5])
+
+    x, y, z = x_vals, y_vals, z_vals
+
+    fig = go.Figure(data=[go.Scatter3d(
+        x=x,
+        y=y,
+        z=z,
+        mode='markers',
+        marker=dict(
+            size=5,
+            color=class_colors  # set color to an array/list of desired values
+        )
+    )])
+
+    # tight layout
+    fig.show()

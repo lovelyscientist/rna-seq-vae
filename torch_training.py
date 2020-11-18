@@ -45,8 +45,8 @@ def main(args):
 
     def loss_fn(recon_x, x, mean, log_var):
         view_size = 1000
-        #ENTROPY = torch.nn.functional.binary_cross_entropy(
-        #    recon_x.view(-1, view_size), x.view(-1, view_size), reduction='sum')
+        ENTROPY = torch.nn.functional.binary_cross_entropy(
+            recon_x.view(-1, view_size), x.view(-1, view_size), reduction='sum')
         HALF_LOG_TWO_PI = 0.91893
         MSE = torch.sum((x - recon_x)**2)
         KLD = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
@@ -57,10 +57,11 @@ def main(args):
             gamma_square = min(MSE, latest_loss.clone())
         #print(gamma_square)
         #print(MSE,KLD)
-        return {'GL': (MSE/(2*gamma_square.clone()) + torch.log(torch.sqrt(gamma_square)) + HALF_LOG_TWO_PI + KLD) / x.size(0), 'MSE': MSE}
+       # return {'GL': (MSE/(2*gamma_square.clone()) + torch.log(torch.sqrt(gamma_square)) + HALF_LOG_TWO_PI + KLD) / x.size(0), 'MSE': MSE}
         #return {'GL': (50*MSE + KLD) / x.size(0), 'MSE': MSE}
-        beta = 0.1
-        #return {'GL': (beta*MSE + (1-beta)*KLD) / x.size(0), 'MSE': MSE}
+        beta = 0.9
+        return {'GL': (ENTROPY + KLD) / x.size(0), 'MSE': MSE}
+        #return {'GL': (ENTROPY + 50*KLD) / x.size(0), 'MSE': MSE}
 
     vae = VAE(
         encoder_layer_sizes=args.encoder_layer_sizes,
@@ -236,7 +237,7 @@ if __name__ == '__main__':
     parser.add_argument("--learning_rate", type=float, default=0.001)
     parser.add_argument("--encoder_layer_sizes", type=list, default=[1000, 512, 256])
     parser.add_argument("--decoder_layer_sizes", type=list, default=[256, 512, 1000])
-    parser.add_argument("--latent_size", type=int, default=100)
+    parser.add_argument("--latent_size", type=int, default=50)
     parser.add_argument("--print_every", type=int, default=100)
     parser.add_argument("--fig_root", type=str, default='figs')
     parser.add_argument("--conditional", action='store_true')
