@@ -6,6 +6,10 @@ Based on:
 3. https://arxiv.org/pdf/1908.06278.pdf
 4. https://github.com/timbmg/VAE-CVAE-MNIST
 5. https://gtexportal.org/home/
+6. Papers on loss of variance for VAE: https://arxiv.org/pdf/2002.09860.pdf,
+ https://arxiv.org/pdf/2002.07514.pdf,
+ https://github.com/asperti/BalancingVAE/blob/master/computed_gamma.py
+
 
 Progress of the project:
 - [x] Baseline model creation

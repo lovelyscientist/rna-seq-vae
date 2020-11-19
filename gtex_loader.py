@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import umap
 import pyarrow.parquet as pq
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, QuantileTransformer, Normalizer
 from sklearn.model_selection import train_test_split
@@ -53,6 +54,9 @@ def get_gtex_dataset(problem='classification'):
     #expressions = get_expressions()[get_genes_of_interest()]
     data = samples.join(expressions, on="Name", how="inner")
     #data = data[(data['Avg_age'] == 64.5)]
+    #print(data['Death'].unique())
+    #data = data[(data['Death'] != '>1 day') & (data['Death'] != 'alive/NA')]
+    #data = data[(data['Age'] == '20-29') | (data['Age'] == '60-69')]
 
     if problem == 'classification':
         Y = data['Age'].values
@@ -60,6 +64,7 @@ def get_gtex_dataset(problem='classification'):
         Y = data['Avg_age'].values
 
     # removing labels
+
     columns_to_drop = ["Tissue", "Sex", "Age", "Death", "Subtissue", "Avg_age"]
     valid_columns = data.columns.drop(columns_to_drop)
 
@@ -93,11 +98,9 @@ def get_gtex_dataset(problem='classification'):
     find_max_latent_space_size(syn_x.values, 200)
 
     tsne_with_plotly(scaled_df.values, Y, classes=True)
-    #tsne_with_plotly(syn_x, list(syn_y.values), classes=True)
+    #tsne_with_plotly(syn_x.values, list(syn_y.values), classes=True)
 
     gene_names = [ensemble_data.gene_name_of_gene_id(c) for c in list(scaled_df.columns)]
-
-    print(Y[:10])
 
     return (X_train, Y_train), (X_test, Y_test), scaled_df.values, gene_names, Y
 
@@ -115,58 +118,17 @@ def find_max_latent_space_size(X, components):
     print('With', components, 'explained variance is', np.sum(pca.explained_variance_ratio_))
 
 
-def plot_dataset_in_3d_space(X, Y, classes=False):
-    print(Y[0])
-    tsne_model = TSNE(n_components=3)
-    X_3d = tsne_model.fit_transform(X)
-    #np.save('models/tsne_full_space.npy', X_3d)
-
-    # print(pca_model.explained_variance_ratio_)
-    # X_3d = np.load('models/tsne_full_space.npy')
-
-    if classes:
-        colors_dict = {
-            '20-29': 'blue',
-            '30-39': 'orange',
-            '40-49': 'red',
-            '50-59': 'purple',
-            '60-69': 'yellow',
-            '70-79': 'green'
-        }
-    else:
-        colors_dict = {
-            '24.5': 'blue',
-            '34.5': 'orange',
-            '44.5': 'red',
-            '54.5': 'purple',
-            '64.5': 'yellow',
-            '74.5': 'green'
-        }
-
-    class_colors = list(map(lambda y: colors_dict[str(y)], Y))
-
-    fig = plt.figure()
-
-    ax = Axes3D(fig)
-
-    x_vals = X_3d[:, 0:1]
-    y_vals = X_3d[:, 1:2]
-    z_vals = X_3d[:, 2:3]
-
-    ax.scatter(x_vals, y_vals, z_vals, c=class_colors, alpha=0.4)
-    ax.set_xlabel('X-axis')
-    ax.set_ylabel('Y-axis')
-    ax.set_zlabel('Z-axis')
-    plt.show()
-
-
 def tsne_with_plotly(X, Y, classes=False):
-    tsne_model = TSNE(n_components=3)
-    X_3d = tsne_model.fit_transform(X)
-    np.save('models/tsne_full_space.npy', X_3d)
+    pca = PCA(n_components=3)
+    transformed_x = pca.fit_transform(X)
 
-    # print(pca_model.explained_variance_ratio_)
-    # X_3d = np.load('models/tsne_full_space.npy')
+    X_3d = transformed_x
+
+    #tsne_model = TSNE(n_components=3, init='pca')
+    #X_3d = tsne_model.fit_transform(X)
+    #np.save('models/tsne_sampled_space.npy', X_3d)
+
+    #X_3d = np.load('models/tsne_full_space.npy')
 
     if classes:
         colors_dict = {
@@ -176,7 +138,7 @@ def tsne_with_plotly(X, Y, classes=False):
             "['50-59']": 'purple',
             "['60-69']": 'yellow',
             "['70-79']": 'green',
-            "20-20": 'blue',
+            "20-29": 'blue',
             "30-39": 'orange',
             "40-49": 'red',
             "50-59": 'purple',

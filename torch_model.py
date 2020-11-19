@@ -62,8 +62,17 @@ class VAE(nn.Module):
 
         return recon_x
 
+    def embedding(self, x, c=None):
+        view_size = 1000
+        if x.dim() > 2:
+            x = x.view(-1, view_size)
 
-class Encoder(nn.Module):
+        means, log_var = self.encoder(x, c)
+
+        return means, log_var
+
+
+class Encoder(nn.Module):s
 
     def __init__(self, layer_sizes, latent_size, conditional, num_labels):
 
