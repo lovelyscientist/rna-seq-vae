@@ -25,7 +25,12 @@ def main(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     ts = time.time()
 
-    (X_train, Y_train), (X_test, Y_test), scaled_df_values, gene_names, Y = get_gtex_dataset()
+    gtex_dataset = get_gtex_dataset()
+    (X_train, Y_train) = gtex_dataset['train_set']
+    (X_test, Y_test) = gtex_dataset['test_set']
+    scaled_df_values = gtex_dataset['X_df']
+    gene_names = gtex_dataset['gene_names']
+    Y = gtex_dataset['Y']
 
     le = LabelEncoder()
     le.fit(Y_train)
@@ -133,7 +138,7 @@ def main(args):
                 if iteration == len(test_loader) - 1:
                     print('====> Test set loss: {:.4f}'.format(test_loss.item()))
 
-    with torch.no_grad():
+    '''with torch.no_grad():
         y_synthetic = []
         x_synthetic = []
         for i in range(6):
@@ -143,7 +148,22 @@ def main(args):
             y_synthetic += list(np.ravel(le.inverse_transform(c)))
 
         x_df = pd.DataFrame(x_synthetic, columns=gene_names).to_csv('data/expressions_synthetic_2000.csv', index=False)
-        y_df = pd.DataFrame(y_synthetic, columns=['Age']).to_csv('data/samples_synthetic_2000.csv', index=False)
+        y_df = pd.DataFrame(y_synthetic, columns=['Age']).to_csv('data/samples_synthetic_2000.csv', index=False)'''
+
+    # saving embeddings
+
+    '''with torch.no_grad():
+        x_emb = []
+        transformed_y = le.transform(Y)
+        for i, x in enumerate(scaled_df_values):
+            x_emb.append(np.ravel(vae.embedding(torch.from_numpy(x).float(), transformed_y[i]).detach().numpy()))
+
+        x_emb = np.array(x_emb)
+        print(transformed_y[0])
+        print(x_emb.size)
+
+        pd.DataFrame.from_records(x_emb).to_csv('data/expressions_embedding.csv', index=False)
+        pd.DataFrame(Y, columns=['Age']).to_csv('data/samples_embedding.csv', index=False)'''
 
     check_reconstruction_and_sampling_fidelity(vae, scaled_df_values, Y, gene_names)
 
@@ -237,7 +257,7 @@ if __name__ == '__main__':
     parser.add_argument("--learning_rate", type=float, default=0.001)
     parser.add_argument("--encoder_layer_sizes", type=list, default=[1000, 512, 256])
     parser.add_argument("--decoder_layer_sizes", type=list, default=[256, 512, 1000])
-    parser.add_argument("--latent_size", type=int, default=50)
+    parser.add_argument("--latent_size", type=int, default=200)
     parser.add_argument("--print_every", type=int, default=100)
     parser.add_argument("--fig_root", type=str, default='figs')
     parser.add_argument("--conditional", action='store_true')

@@ -64,15 +64,20 @@ class VAE(nn.Module):
 
     def embedding(self, x, c=None):
         view_size = 1000
-        if x.dim() > 2:
-            x = x.view(-1, view_size)
+        #if x.dim() > 2:
+        #    x = x.view(-1, view_size)
+
+        batch_size = x.size(0)
 
         means, log_var = self.encoder(x, c)
+        std = torch.exp(0.5 * log_var)
+        eps = torch.randn([1, self.latent_size])
+        z = eps * std + means
 
-        return means, log_var
+        return z
 
 
-class Encoder(nn.Module):s
+class Encoder(nn.Module):
 
     def __init__(self, layer_sizes, latent_size, conditional, num_labels):
 
