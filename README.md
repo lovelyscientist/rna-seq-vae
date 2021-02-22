@@ -1,4 +1,12 @@
-Variational Auto-Encoder for GTEx dataset (V8) using Tensorflow 2
+Conditional Variational Auto-Encoder for GTEx dataset (V8) 
+
+3D Representations (UMAP, TSNE, PCA) of GTEx dataset (1000 random genes) coloured by tissue:
+
+![3D reprsentation](./tensorboard_imgs/3d_embeddings.png)
+
+Current reconstruction quality for CVAE, conditional on tissue.
+
+![reconstruction](./tensorboard_imgs/reconstruction_quality.png)
 
 Based on:
 1. https://www.tensorflow.org/tutorials/generative/cvae
@@ -10,7 +18,6 @@ Based on:
  https://arxiv.org/pdf/2002.07514.pdf,
  https://github.com/asperti/BalancingVAE/blob/master/computed_gamma.py
 
-
 Progress of the project:
 - [x] Baseline model creation
 - [x] Functions for evaluating mean, absolute difference and grouping in the latent space
@@ -18,15 +25,15 @@ Progress of the project:
    * latent space size
    * batch size, learning rate (epochs number should be determined with early stopping)
    * number of additional dense layers, number of neurons in each additional layer
-- [ ] Conditional VAE model (multiple conditions?)
+- [x] Conditional VAE model (one of conditions: tissue or age)
 - [ ] b-VAE model (MSE / KL-divergence weight in the loss function)
 - [ ] Correlated VAE (https://arxiv.org/pdf/1905.05335.pdf)
 
-- `model.py ` - Layers and properties of the neural network
+- `torch_model.py ` - Layers and properties of the neural network
 - `gtex_loder.py` - Loading gene expression dataset
-- `vae_training.py` - Model Training and Testing
+- `torch_training.py` - Model training and testing
 
-`python3 vae_training.py` to start the generation algorithm
+`python3 torch_training.py` to start the generation algorithm
 
 `tensorboard --logdir logs/run{number_of_run}` to start tensorboard
 

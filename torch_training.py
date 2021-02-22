@@ -25,18 +25,18 @@ def main(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     ts = time.time()
 
-    gtex_dataset = get_gtex_dataset()
+    gtex_dataset = get_gtex_dataset(label='tissue')
     (X_train, Y_train) = gtex_dataset['train_set']
     (X_test, Y_test) = gtex_dataset['test_set']
     scaled_df_values = gtex_dataset['X_df']
     gene_names = gtex_dataset['gene_names']
     Y = gtex_dataset['Y']
+    LABELS_NUM = len(set(Y))
 
     le = LabelEncoder()
     le.fit(Y_train)
     train_targets = le.transform(Y_train)
     test_targets = le.transform(Y_test)
-    print(le.classes_)
 
     train_target = torch.as_tensor(train_targets)
     train = torch.tensor(X_train.astype(np.float32))
@@ -62,9 +62,10 @@ def main(args):
             gamma_square = min(MSE, latest_loss.clone())
         #print(gamma_square)
         #print(MSE,KLD)
-       # return {'GL': (MSE/(2*gamma_square.clone()) + torch.log(torch.sqrt(gamma_square)) + HALF_LOG_TWO_PI + KLD) / x.size(0), 'MSE': MSE}
+        #return {'GL': (MSE/(2*gamma_square.clone()) + torch.log(torch.sqrt(gamma_square)) + HALF_LOG_TWO_PI + KLD) / x.size(0), 'MSE': MSE}
         #return {'GL': (50*MSE + KLD) / x.size(0), 'MSE': MSE}
         beta = 0.9
+        #
         return {'GL': (ENTROPY + KLD) / x.size(0), 'MSE': MSE}
         #return {'GL': (ENTROPY + 50*KLD) / x.size(0), 'MSE': MSE}
 
@@ -73,7 +74,7 @@ def main(args):
         latent_size=args.latent_size,
         decoder_layer_sizes=args.decoder_layer_sizes,
         conditional=args.conditional,
-        num_labels=6 if args.conditional else 0).to(device)
+        num_labels=LABELS_NUM if args.conditional else 0).to(device)
 
     dataiter = iter(data_loader)
     genes, labels = dataiter.next()
@@ -115,18 +116,15 @@ def main(args):
 
             logs['loss'].append(loss.item())
 
-
-
             if iteration % args.print_every == 0 or iteration == len(data_loader)-1:
                 print("Epoch {:02d}/{:02d} Batch {:04d}/{:d}, Loss {:9.4f}".format(
                     epoch, args.epochs, iteration, len(data_loader)-1, loss.item()))
 
                 if args.conditional:
-                    c = torch.arange(0, 6).long().unsqueeze(1)
+                    c = torch.arange(0, LABELS_NUM).long().unsqueeze(1)
                     x = vae.inference(n=c.size(0), c=c)
                 else:
                     x = vae.inference()
-
 
     with torch.no_grad():
         for epoch in range(args.epochs):
@@ -138,36 +136,48 @@ def main(args):
                 if iteration == len(test_loader) - 1:
                     print('====> Test set loss: {:.4f}'.format(test_loss.item()))
 
-    '''with torch.no_grad():
+    # save synthetic data
+    generate_synthetic_data_for_analysis(vae, 500, 'trial_1', gene_names, le)
+
+    # save embedding data
+    generate_embedding_data_for_analysis(vae, scaled_df_values, Y, 'trial_1', le)
+
+    # check quality of reconstruction
+    check_reconstruction_and_sampling_fidelity(vae, le,  scaled_df_values, Y, gene_names)
+
+
+def generate_embedding_data_for_analysis(vae, dataset_values, dataset_labels, trial_name, label_encoder):
+    x_emb = []
+    transformed_y = label_encoder.transform(dataset_labels)
+
+    for i, x in enumerate(dataset_values):
+        x_emb.append(np.ravel(vae.embedding(torch.from_numpy(x).float(), transformed_y[i]).detach().numpy()))
+    x_emb = np.array(x_emb)
+
+    pd.DataFrame.from_records(x_emb).to_csv('data/{}_embedding_expressions.csv'.format(trial_name), index=False)
+    pd.DataFrame(dataset_labels, columns=['label']).to_csv('data/{}_embedding_labels.csv'.format(trial_name), index=False)
+
+
+def generate_synthetic_data_for_analysis(vae, samples_per_labels, trial_name, gene_names, label_encoder):
+    with torch.no_grad():
         y_synthetic = []
         x_synthetic = []
-        for i in range(6):
-            c = np.array([i for j in range(2000)])
-            x = vae.inference(n=len(c), c=c)
-            x_synthetic += list(x.detach().numpy()[:,:1000])
-            y_synthetic += list(np.ravel(le.inverse_transform(c)))
+        labels_to_generate = []
 
-        x_df = pd.DataFrame(x_synthetic, columns=gene_names).to_csv('data/expressions_synthetic_2000.csv', index=False)
-        y_df = pd.DataFrame(y_synthetic, columns=['Age']).to_csv('data/samples_synthetic_2000.csv', index=False)'''
+        for label_value in label_encoder.classes_:
+            label_to_generate = [label_value for i in range(samples_per_labels)]
+            labels_to_generate += label_to_generate
 
-    # saving embeddings
+        all_samples = np.array(labels_to_generate)
+        x = vae.inference(n=len(all_samples), c=all_samples)
+        x_synthetic += list(x.detach().numpy())
+        y_synthetic += list(np.ravel(label_encoder.transform(all_samples)))
 
-    '''with torch.no_grad():
-        x_emb = []
-        transformed_y = le.transform(Y)
-        for i, x in enumerate(scaled_df_values):
-            x_emb.append(np.ravel(vae.embedding(torch.from_numpy(x).float(), transformed_y[i]).detach().numpy()))
+        pd.DataFrame(x_synthetic, columns=gene_names).to_csv('data/{}_expressions.csv'.format(trial_name), index=False)
+        pd.DataFrame(y_synthetic, columns=['label']).to_csv('data/{}_labels.csv'.format(trial_name), index=False)
 
-        x_emb = np.array(x_emb)
-        print(transformed_y[0])
-        print(x_emb.size)
 
-        pd.DataFrame.from_records(x_emb).to_csv('data/expressions_embedding.csv', index=False)
-        pd.DataFrame(Y, columns=['Age']).to_csv('data/samples_embedding.csv', index=False)'''
-
-    check_reconstruction_and_sampling_fidelity(vae, scaled_df_values, Y, gene_names)
-
-def check_reconstruction_and_sampling_fidelity(vae_model,scaled_df_values, Y, gene_names):
+def check_reconstruction_and_sampling_fidelity(vae_model, le, scaled_df_values, Y, gene_names):
     # get means of original columns based on 100 first rows
     genes_to_validate = 40
     original_means = np.mean(scaled_df_values, axis=0)
@@ -184,16 +194,15 @@ def check_reconstruction_and_sampling_fidelity(vae_model,scaled_df_values, Y, ge
     #decoded_vars = np.var(x_decoded, axis=0)
 
     with torch.no_grad():
-        number_of_samples = 2000
-        class_0 = [0 for i in range(number_of_samples)]
-        class_1 = [1 for i in range(number_of_samples)]
-        class_2 = [2 for i in range(number_of_samples)]
-        class_3 = [3 for i in range(number_of_samples)]
-        class_4 = [4 for i in range(number_of_samples)]
-        class_5 = [5 for i in range(number_of_samples)]
-        all_samples = np.array(class_0 + class_1 + class_2 + class_3 + class_4 + class_5)
-        c = torch.from_numpy(all_samples)
-        print(c)
+        number_of_samples = 500
+        labels_to_generate = []
+        for label_value in le.classes_:
+            label_to_generate = [label_value for i in range(number_of_samples)]
+            labels_to_generate += label_to_generate
+        all_samples = np.array(labels_to_generate)
+        #c = torch.from_numpy(all_samples)
+        c = all_samples
+        #print(c)
         x = vae_model.inference(n=len(all_samples), c=c)
         print(x)
 
@@ -252,12 +261,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--learning_rate", type=float, default=0.001)
     parser.add_argument("--encoder_layer_sizes", type=list, default=[1000, 512, 256])
     parser.add_argument("--decoder_layer_sizes", type=list, default=[256, 512, 1000])
-    parser.add_argument("--latent_size", type=int, default=200)
+    parser.add_argument("--latent_size", type=int, default=50)
     parser.add_argument("--print_every", type=int, default=100)
     parser.add_argument("--fig_root", type=str, default='figs')
     parser.add_argument("--conditional", action='store_true')

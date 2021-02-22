@@ -17,15 +17,16 @@ GTEX_SAMPLES_PATH = './data/v8_samples.parquet'
 TRAIN_SIZE = 4500
 TEST_SIZE = 1100
 
+
 # load gene expression data
 def get_expressions(path=GTEX_EXPRESSIONS_PATH):
     if path.endswith(".parquet"):
-        genes_to_choose = pd.read_csv('data/aging_significant_genes.csv')['ids'].values
-        return pq.read_table(path).to_pandas().set_index("Name")#[genes_to_choose]
+        # genes_to_choose = pd.read_csv('data/aging_significant_genes.csv')['ids'].values
+        return pq.read_table(path).to_pandas().set_index("Name")
     else:
-        genes_to_choose = pd.read_csv('data/aging_significant_genes.csv')['ids'].values
+        # genes_to_choose = pd.read_csv('data/aging_significant_genes.csv')['ids'].values
         separator = "," if path.endswith(".csv") else "\t"
-        return pd.read_csv(path, sep=separator).set_index("Name")#[genes_to_choose]
+        return pd.read_csv(path, sep=separator).set_index("Name")
 
 
 # load additional metadata of the dataset
@@ -79,14 +80,14 @@ def get_gtex_dataset(label='tissue', problem='classification'):
             'gene_names': gene_names}
 
 
-def get_3d_embeddings(method='umap', dataset='real', label='tissue', save=False):
+def get_3d_embeddings(method='umap', dataset='real', label='tissue', file_pattern=None, save=False):
     if dataset == 'real':
         data = get_gtex_dataset(problem='classification', label=label)
         x_values = data['X_df']
         y_values = data['Y']
     else:
-        x_values = pd.read_csv('data/expressions_synthetic_2000.csv')
-        y_values = pd.read_csv('data/samples_synthetic_2000.csv')
+        x_values = pd.read_csv('data/{}_expressions.csv'.format(file_pattern)).values
+        y_values = pd.read_csv('data/{}_labels.csv'.format(file_pattern))['label'].values
 
     if method == 'umap':
         embedding = umap.UMAP(n_components=3).fit_transform(x_values)
@@ -95,13 +96,12 @@ def get_3d_embeddings(method='umap', dataset='real', label='tissue', save=False)
         embedding = TSNE(n_components=3, init='pca').fit_transform(x_values)
 
     if method == 'pca':
-        embedding = PCA(n_components=3).fit(x_values)
+        embedding = PCA(n_components=3).fit_transform(x_values)
 
     if save:
         np.save('data/{0}_{1}.npy'.format(method, dataset), embedding)
 
     title = '3D embedding of {0} GTEx gene expressions by {1} coloured by {2}'.format(dataset, method, label)
-
     return embedding, y_values, title
 
 
@@ -202,5 +202,5 @@ def get_random_plotly_color():
     return colors_list[np.random.choice(len(colors_list))]
 
 
-x, y, t = get_3d_embeddings(method='umap', dataset='real', label='tissue')
+x, y, t = get_3d_embeddings(method='pca', dataset='real', label='tissue', file_pattern='trial_1_embedding')
 plot_3d_embeddings(x, y, t)

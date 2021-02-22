@@ -30,6 +30,7 @@ class VAE(nn.Module):
         assert type(decoder_layer_sizes) == list
 
         self.latent_size = latent_size
+        self.num_labels = num_labels
 
         self.encoder = Encoder(
             encoder_layer_sizes, latent_size, conditional, num_labels)
@@ -53,8 +54,9 @@ class VAE(nn.Module):
 
         return recon_x, means, log_var, z
 
-    def inference(self, n=10, c=None):
-
+    def inference(self, n=0, c=None):
+        if n == 0:
+            n = self.num_labels
         batch_size = n
         z = torch.randn([batch_size, self.latent_size])
 
@@ -100,7 +102,7 @@ class Encoder(nn.Module):
     def forward(self, x, c=None):
 
         if self.conditional:
-            c = idx2onehot(c, n=6)
+            c = idx2onehot(c, n=self.num_labels)
             x = torch.cat((x, c), dim=-1)
 
         x = self.MLP(x)
@@ -118,6 +120,7 @@ class Decoder(nn.Module):
         super().__init__()
 
         self.MLP = nn.Sequential()
+        self.num_labels = num_labels
 
         self.conditional = conditional
         if self.conditional:
@@ -136,7 +139,7 @@ class Decoder(nn.Module):
     def forward(self, z, c):
 
         if self.conditional:
-            c = idx2onehot(c, n=6)
+            c = idx2onehot(c, n=self.num_labels)
             z = torch.cat((z, c), dim=-1)
 
         x = self.MLP(z)
