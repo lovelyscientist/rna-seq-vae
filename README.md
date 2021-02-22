@@ -1,4 +1,7 @@
-#### Conditional Variational Auto-Encoder for GTEx dataset (V8) 
+### Conditional Variational Auto-Encoder for GTEx dataset (V8)   
+
+This project aims to generate synthetic gene expression data using generative models.  
+We first investigate the 3D representation of the data and possible variables to condition on in order to effectively separate the samples and distributions. Currently model is conditioned on tissue.
 
 3D Representations (UMAP, TSNE, PCA) of the GTEx dataset (1000 random genes) coloured by tissue:
 
