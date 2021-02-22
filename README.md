@@ -1,4 +1,4 @@
-####Conditional Variational Auto-Encoder for GTEx dataset (V8) 
+#### Conditional Variational Auto-Encoder for GTEx dataset (V8) 
 
 3D Representations (UMAP, TSNE, PCA) of the GTEx dataset (1000 random genes) coloured by tissue:
 
