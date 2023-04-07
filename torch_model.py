@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 writer = SummaryWriter('runs/lgbm')
 
+
 def idx2onehot(idx, n):
 
     assert torch.max(idx).item() < n
@@ -16,7 +17,6 @@ def idx2onehot(idx, n):
 
 
 class VAE(nn.Module):
-
     def __init__(self, encoder_layer_sizes, latent_size, decoder_layer_sizes,
                  conditional=False, num_labels=0):
 
@@ -44,13 +44,13 @@ class VAE(nn.Module):
 
         batch_size = x.size(0)
 
-        means, log_var = self.encoder(x, c)
+        means, log_var = self.encoder.forward(x, c)
 
         std = torch.exp(0.5 * log_var)
         eps = torch.randn([batch_size, self.latent_size])
         z = eps * std + means
 
-        recon_x = self.decoder(z, c)
+        recon_x = self.decoder.forward(z, c)
 
         return recon_x, means, log_var, z
 
@@ -60,7 +60,7 @@ class VAE(nn.Module):
         batch_size = n
         z = torch.randn([batch_size, self.latent_size])
 
-        recon_x = self.decoder(z, c)
+        recon_x = self.decoder.forward(z, c)
 
         return recon_x
 
@@ -71,7 +71,7 @@ class VAE(nn.Module):
 
         batch_size = x.size(0)
 
-        means, log_var = self.encoder(x, c)
+        means, log_var = self.encoder.forward(x, c)
         std = torch.exp(0.5 * log_var)
         eps = torch.randn([1, self.latent_size])
         z = eps * std + means
@@ -80,7 +80,6 @@ class VAE(nn.Module):
 
 
 class Encoder(nn.Module):
-
     def __init__(self, layer_sizes, latent_size, conditional, num_labels):
 
         super().__init__()
@@ -114,7 +113,6 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-
     def __init__(self, layer_sizes, latent_size, conditional, num_labels):
 
         super().__init__()

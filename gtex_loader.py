@@ -202,5 +202,5 @@ def get_random_plotly_color():
     return colors_list[np.random.choice(len(colors_list))]
 
 
-x, y, t = get_3d_embeddings(method='pca', dataset='real', label='tissue', file_pattern='trial_1_embedding')
-plot_3d_embeddings(x, y, t)
+#x, y, t = get_3d_embeddings(method='pca', dataset='real', label='tissue', file_pattern='trial_1_embedding')
+#plot_3d_embeddings(x, y, t)

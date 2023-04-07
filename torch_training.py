@@ -77,7 +77,7 @@ def main(args):
         num_labels=LABELS_NUM if args.conditional else 0).to(device)
 
     dataiter = iter(data_loader)
-    genes, labels = dataiter.next()
+    genes, labels = next(dataiter)
     writer.add_graph(vae, genes)
     writer.close()
 
@@ -85,6 +85,7 @@ def main(args):
 
     logs = defaultdict(list)
 
+    vae.train()
     for epoch in range(args.epochs):
         train_loss = 0
         tracker_epoch = defaultdict(lambda: defaultdict(dict))
@@ -126,6 +127,7 @@ def main(args):
                 else:
                     x = vae.inference()
 
+    vae.eval()
     with torch.no_grad():
         for epoch in range(args.epochs):
             test_loss = 0
@@ -159,6 +161,7 @@ def generate_embedding_data_for_analysis(vae, dataset_values, dataset_labels, tr
 
 
 def generate_synthetic_data_for_analysis(vae, samples_per_labels, trial_name, gene_names, label_encoder):
+    vae.eval()
     with torch.no_grad():
         y_synthetic = []
         x_synthetic = []
@@ -192,7 +195,7 @@ def check_reconstruction_and_sampling_fidelity(vae_model, le, scaled_df_values, 
 
     #decoded_means = np.mean(x_decoded, axis=0)
     #decoded_vars = np.var(x_decoded, axis=0)
-
+    vae_model.eval()
     with torch.no_grad():
         number_of_samples = 500
         labels_to_generate = []
@@ -266,7 +269,7 @@ if __name__ == '__main__':
     parser.add_argument("--learning_rate", type=float, default=0.001)
     parser.add_argument("--encoder_layer_sizes", type=list, default=[1000, 512, 256])
     parser.add_argument("--decoder_layer_sizes", type=list, default=[256, 512, 1000])
-    parser.add_argument("--latent_size", type=int, default=50)
+    parser.add_argument("--latent_size", type=int, default=20)
     parser.add_argument("--print_every", type=int, default=100)
     parser.add_argument("--fig_root", type=str, default='figs')
     parser.add_argument("--conditional", action='store_true')
